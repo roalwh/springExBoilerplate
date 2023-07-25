@@ -14,10 +14,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
+
 import static org.springframework.boot.autoconfigure.security.servlet.PathRequest.toH2Console;
 
 @RequiredArgsConstructor
@@ -34,12 +38,14 @@ public class WebSecutityConfig {
         return (web) -> web.ignoring()
                 .requestMatchers(toH2Console())
 //                .antMatchers("/img/**", "/css/**", "/js/**")
-                .requestMatchers("/img/**", "/css/**", "/js/**")
+//                .requestMatchers("/img/**", "/css/**", "/js/**")
                 ;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, HandlerMappingIntrospector introspector) throws Exception {
+
+        MvcRequestMatcher.Builder mvcMatcherBuilder = new MvcRequestMatcher.Builder(introspector);
 
         http.httpBasic((basic)->basic.disable());
         http.csrf((csrf)->csrf.disable());
@@ -49,7 +55,7 @@ public class WebSecutityConfig {
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(jwtAccessDeniedHandler));
         http.authorizeHttpRequests((authorize) -> authorize
-                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers(mvcMatcherBuilder.pattern("/api/auth/**")).permitAll()
                     // /와 /auth/**이외의 모든 경로는 인증 해야됨.
                     .anyRequest().authenticated())
                     .oauth2Login((authlogin) -> authlogin //2auth 설정
@@ -67,4 +73,10 @@ public class WebSecutityConfig {
     public OAuth2CustomAuthenticationSuccessHandler customAuth2SuccessHandler() {
         return new OAuth2CustomAuthenticationSuccessHandler(oAuth2CustomUserService);
     }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
 }
